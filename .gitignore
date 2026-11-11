@@ -1,0 +1,22 @@
+# build
+build/
+bin/
+*.o
+*.out
+
+# matrices 
+matrices/
+*.mtx
+*.tar.gz
+
+# profiler output
+*.ncu-rep
+*.nsys-rep
+
+# python
+__pycache__/
+.venv/
+
+# misc
+.DS_Store
+.vscode/
