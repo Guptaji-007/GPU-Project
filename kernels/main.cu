@@ -18,6 +18,49 @@ __global__ void csrScalarSpmv(int rows, const int *rowPtr, const int *colIdx,
     }
 }
 
+// kernel 2: CSR vector SpMV
+// one warp (32 threads) works on one row, so long rows are shared by 32 threads
+__global__ void csrVectorSpmv(int rows, const int *rowPtr, const int *colIdx,
+                              const float *val, const float *x, float *y) {
+    int thread = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = thread / 32;   // which row this warp works on
+    int lane = thread % 32;  // position of this thread inside the warp
+
+    if (row < rows) {
+        // each thread adds every 32nd non-zero of the row
+        // neighbouring threads read neighbouring val/colIdx, so reads are coalesced
+        float sum = 0.0f;
+        for (int j = rowPtr[row] + lane; j < rowPtr[row + 1]; j += 32)
+            sum += val[j] * x[colIdx[j]];
+
+        // add the 32 partial sums inside the warp: 16, 8, 4, 2, 1
+        for (int offset = 16; offset > 0; offset /= 2)
+            sum += __shfl_down_sync(0xffffffff, sum, offset);
+
+        // lane 0 now has the full sum
+        if (lane == 0)
+            y[row] = sum;
+    }
+}
+
+// kernel 3: ELL SpMV
+// one thread per row. ELL is stored column-major (entry k of row i is at k * rows + i),
+// so in every step of the loop neighbouring threads read neighbouring memory -> coalesced
+__global__ void ellSpmv(int rows, int maxPerRow, const int *colIdx,
+                        const float *val, const float *x, float *y) {
+    int row = blockIdx.x * blockDim.x + threadIdx.x;
+    if (row < rows) {
+        float sum = 0.0f;
+        for (int k = 0; k < maxPerRow; k++) {
+            long idx = (long)k * rows + row;
+            int col = colIdx[idx];
+            if (col != -1)  // -1 means padded slot, skip it
+                sum += val[idx] * x[col];
+        }
+        y[row] = sum;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         printf("Usage: %s <matrix.mtx>\n", argv[0]);
@@ -104,11 +147,11 @@ int main(int argc, char** argv) {
     }
 
     float avgMs = total_gpu_ms / runs;
-    printf("Average GPU SpMV Time: %f ms\n", avgMs);
+    printf("Average GPU CSR scalar SpMV Time: %f ms\n", avgMs);
 
     // each non-zero does one multiply and one add = 2 flops
     float gflops = 2.0f * csr.nnz / (avgMs * 1e6f);
-    printf("GPU SpMV GFLOP/s: %f\n", gflops);
+    printf("GPU CSR scalar SpMV GFLOP/s: %f\n", gflops);
 
 
     // correctness check and cleanup
@@ -116,8 +159,112 @@ int main(int argc, char** argv) {
     // copy the result back from gpu
     cudaMemcpy(y_gpu_result, gpuY, csr.rows * sizeof(float), cudaMemcpyDeviceToHost);
 
-    printf("Checking SpMV Correctness: ");
+    printf("Checking CSR scalar SpMV Correctness: ");
     checkResult(y_cpu, y_gpu_result, csr.rows);
+
+
+    // kernel 2: CSR vector SpMV (one warp per row)
+
+    // clear y so the check below really tests kernel 2
+    cudaMemset(gpuY, 0, csr.rows * sizeof(float));
+
+    // we need 32 threads for every row now
+    int vectorBlocks = (csr.rows * 32 + threads - 1) / threads;
+
+    // warmup
+    csrVectorSpmv<<<vectorBlocks, threads>>>(csr.rows, gpuRowPtr, gpuColIdx, gpuVal, gpuX, gpuY);
+    cudaDeviceSynchronize();
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+        printf("CUDA error: %s\n", cudaGetErrorString(err));
+
+    float totalVectorMs = 0.0f;
+    for (int i = 0; i < runs; i++) {
+        cudaEventRecord(startGpu);
+
+        csrVectorSpmv<<<vectorBlocks, threads>>>(csr.rows, gpuRowPtr, gpuColIdx, gpuVal, gpuX, gpuY);
+
+        cudaEventRecord(stopGpu);
+        cudaEventSynchronize(stopGpu);
+
+        float iterMs = 0.0f;
+        cudaEventElapsedTime(&iterMs, startGpu, stopGpu);
+        totalVectorMs += iterMs;
+    }
+
+    float avgVectorMs = totalVectorMs / runs;
+    printf("Average GPU CSR vector SpMV Time: %f ms\n", avgVectorMs);
+    printf("GPU CSR vector SpMV GFLOP/s: %f\n", 2.0f * csr.nnz / (avgVectorMs * 1e6f));
+
+    cudaMemcpy(y_gpu_result, gpuY, csr.rows * sizeof(float), cudaMemcpyDeviceToHost);
+    printf("Checking CSR vector SpMV Correctness: ");
+    checkResult(y_cpu, y_gpu_result, csr.rows);
+
+
+
+    // kernel 3: ELL SpMV (one thread per row, coalesced)
+
+    // ELL pads every row to the longest row. if one row is very long
+    // (like in web graphs) this needs too much memory, so skip ELL then
+    int maxLen = 0;
+    for (int i = 0; i < csr.rows; i++) {
+        int rowLen = csr.rowPtr[i + 1] - csr.rowPtr[i];
+        if (rowLen > maxLen)
+            maxLen = rowLen;
+    }
+    float padRatio = (float)maxLen * csr.rows / csr.nnz;
+    printf("ELL size / nnz = %.2f\n", padRatio);
+
+    if (padRatio < 10.0f) {
+        ELL ell = csrToEll(csr);
+        long ellSize = (long)ell.rows * ell.maxPerRow;
+
+        int *gpuEllColIdx;
+        float *gpuEllVal;
+        cudaMalloc(&gpuEllColIdx, ellSize * sizeof(int));
+        cudaMalloc(&gpuEllVal, ellSize * sizeof(float));
+        cudaMemcpy(gpuEllColIdx, ell.colIdx, ellSize * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(gpuEllVal, ell.val, ellSize * sizeof(float), cudaMemcpyHostToDevice);
+
+        // clear y so the check below really tests kernel 3
+        cudaMemset(gpuY, 0, csr.rows * sizeof(float));
+
+        // warmup (same blocks as kernel 1, one thread per row)
+        ellSpmv<<<blocks, threads>>>(ell.rows, ell.maxPerRow, gpuEllColIdx, gpuEllVal, gpuX, gpuY);
+        cudaDeviceSynchronize();
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+            printf("CUDA error: %s\n", cudaGetErrorString(err));
+
+        float totalEllMs = 0.0f;
+        for (int i = 0; i < runs; i++) {
+            cudaEventRecord(startGpu);
+
+            ellSpmv<<<blocks, threads>>>(ell.rows, ell.maxPerRow, gpuEllColIdx, gpuEllVal, gpuX, gpuY);
+
+            cudaEventRecord(stopGpu);
+            cudaEventSynchronize(stopGpu);
+
+            float iterMs = 0.0f;
+            cudaEventElapsedTime(&iterMs, startGpu, stopGpu);
+            totalEllMs += iterMs;
+        }
+
+        // GFLOP/s counts only the real non-zeros, not the padding
+        float avgEllMs = totalEllMs / runs;
+        printf("Average GPU ELL SpMV Time: %f ms\n", avgEllMs);
+        printf("GPU ELL SpMV GFLOP/s: %f\n", 2.0f * csr.nnz / (avgEllMs * 1e6f));
+
+        cudaMemcpy(y_gpu_result, gpuY, csr.rows * sizeof(float), cudaMemcpyDeviceToHost);
+        printf("Checking ELL SpMV Correctness: ");
+        checkResult(y_cpu, y_gpu_result, csr.rows);
+
+        cudaFree(gpuEllColIdx);
+        cudaFree(gpuEllVal);
+        freeEll(ell);
+    } else {
+        printf("ELL SpMV: skipped (too much padding)\n");
+    }
 
     // SpMM will need the matrix on the gpu again later, but free it for now
     cudaFree(gpuRowPtr);
