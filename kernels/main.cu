@@ -61,18 +61,14 @@ __global__ void ellSpmv(int rows, int maxPerRow, const int *colIdx,
     }
 }
 
-// kernel 4: CSR naive SpMM (Y = A * B)
-// one thread computes ONE number of Y: the element Y[row][c].
-// B and Y are row-major: element (r, c) lives at r * k + c (same as spmmCpu).
-// Y has rows * k elements, so we launch rows * k threads.
-// "naive" mapping: neighbouring threads get neighbouring rows (same column c)
+// kernel 4: CSR naive SpMM 
+// one thread computes one element: Y[row][c].
 __global__ void csrNaiveSpmm(int rows, int k, const int *rowPtr, const int *colIdx,
                              const float *val, const float *B, float *Y) {
     long id = (long)blockIdx.x * blockDim.x + threadIdx.x;
     if (id < (long)rows * k) {
-        int row = id % rows;  // which row of A / Y
-        int c = id / rows;    // which column of B / Y (0 .. k-1)
-
+        int row = id % rows;  
+        int c = id / rows;    
         float sum = 0.0f;
         for (int j = rowPtr[row]; j < rowPtr[row + 1]; j++)
             sum += val[j] * B[(long)colIdx[j] * k + c];
@@ -289,7 +285,7 @@ int main(int argc, char** argv) {
     cudaFree(gpuX);
     cudaFree(gpuY);
 
-// SpMM part
+    // SpMM part
   
     //SpMM setup and allocation
   
