@@ -61,6 +61,25 @@ __global__ void ellSpmv(int rows, int maxPerRow, const int *colIdx,
     }
 }
 
+// kernel 4: CSR naive SpMM (Y = A * B)
+// one thread computes ONE number of Y: the element Y[row][c].
+// B and Y are row-major: element (r, c) lives at r * k + c (same as spmmCpu).
+// Y has rows * k elements, so we launch rows * k threads.
+// "naive" mapping: neighbouring threads get neighbouring rows (same column c)
+__global__ void csrNaiveSpmm(int rows, int k, const int *rowPtr, const int *colIdx,
+                             const float *val, const float *B, float *Y) {
+    long id = (long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (id < (long)rows * k) {
+        int row = id % rows;  // which row of A / Y
+        int c = id / rows;    // which column of B / Y (0 .. k-1)
+
+        float sum = 0.0f;
+        for (int j = rowPtr[row]; j < rowPtr[row + 1]; j++)
+            sum += val[j] * B[(long)colIdx[j] * k + c];
+        Y[(long)row * k + c] = sum;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         printf("Usage: %s <matrix.mtx>\n", argv[0]);
@@ -266,10 +285,7 @@ int main(int argc, char** argv) {
         printf("ELL SpMV: skipped (too much padding)\n");
     }
 
-    // SpMM will need the matrix on the gpu again later, but free it for now
-    cudaFree(gpuRowPtr);
-    cudaFree(gpuColIdx);
-    cudaFree(gpuVal);
+    // SpMM will need the matrix on the gpu again later, so it is freed later
     cudaFree(gpuX);
     cudaFree(gpuY);
 
@@ -304,18 +320,33 @@ int main(int argc, char** argv) {
     // gpu SpMM execution and timing
   
     // cudaMalloc and cudaMemcpy B_gpu here
+    float *gpuB, *gpuY_spmm;
+    cudaMalloc(&gpuB, csr.cols * k * sizeof(float));
+    cudaMalloc(&gpuY_spmm, csr.rows * k * sizeof(float));
+    cudaMemcpy(gpuB, B_cpu, csr.cols * k * sizeof(float), cudaMemcpyHostToDevice);
+
+    // clear y so the check below really tests kernel 4
+    cudaMemset(gpuY_spmm, 0, (size_t)csr.rows * k * sizeof(float));
+
+    //one thread per element of y
+    int spmmBlocks = (int)(((long)csr.rows * k + threads - 1) / threads);
 
     float total_gpu_ms_spmm = 0.0f;
 
     // warmup run
-    // yourGpuSpmmKernel<<<grid, block>>>(...);
+    csrNaiveSpmm<<<spmmBlocks, threads>>>(csr.rows, k, gpuRowPtr, gpuColIdx, gpuVal, gpuB, gpuY_spmm);
+
     cudaDeviceSynchronize();
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA error: %s\n", cudaGetErrorString(err));
+    }
 
     // timed execution loop
     for(int i = 0; i < runs; i++) {
         cudaEventRecord(startGpu);
         
-        // GpuSpmmKernel<<<grid, block>>>(...);
+        csrNaiveSpmm<<<spmmBlocks, threads>>>(csr.rows, k, gpuRowPtr, gpuColIdx, gpuVal, gpuB, gpuY_spmm);
         
         cudaEventRecord(stopGpu);
         cudaEventSynchronize(stopGpu);
@@ -326,15 +357,22 @@ int main(int argc, char** argv) {
     }
 
     printf("Average GPU SpMM Time (k=%d): %f ms\n", k, total_gpu_ms_spmm / runs);
-
+    printf("GPU naive SpMM GFLOP/s: %f\n", 2.0 * csr.nnz * k / (1e6 * total_gpu_ms_spmm / runs));
   
     // SpMM correctness check
   
-    // (cudamemcpy result from gpu
+    cudaMemcpy(Y_gpu_result, gpuY_spmm, (size_t)csr.rows * k * sizeof(float), cudaMemcpyDeviceToHost);
     
     printf("Checking SpMM Correctness: ");
     // total elements in Y is (csr.rows * k)
     checkResult(Y_cpu, Y_gpu_result, csr.rows * k);
+
+    cudaFree(gpuB);
+    cudaFree(gpuY_spmm);
+    // CSR arrays on GPU freed
+    cudaFree(gpuRowPtr);
+    cudaFree(gpuColIdx);
+    cudaFree(gpuVal);
 
     
     free(B_cpu);
