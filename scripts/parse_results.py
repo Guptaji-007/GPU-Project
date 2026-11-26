@@ -7,10 +7,11 @@ import sys
 from pathlib import Path
 
 HEADER_RE = re.compile(r"^=====+\s*(\S+)")
-TIME_RE = re.compile(r"^Average GPU (.+?) Time\D*\*?(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
+# read the number after the ":" (SpMM lines have "(k=32)" before it)
+TIME_RE = re.compile(r"^Average GPU (.+?) Time[^:]*:\s*\**(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
 GFLOPS_RE = re.compile(r"^GPU (.+?) GFLOP/s:\s*\**(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
 CHECK_RE = re.compile(r"^Checking (.+?) Correctness:\s*\**(PASS|FAIL)\**", re.IGNORECASE)
-CPU_RE = re.compile(r"^CPU (SpMV|SpMM) Time\D*\*?(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
+CPU_RE = re.compile(r"^CPU (SpMV|SpMM) Time[^:]*:\s*\**(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)")
 
 NAIVE_SPMM = "CSR naive SpMM"
 
@@ -128,7 +129,7 @@ def parse(path: Path):
 
 def main():
     if len(sys.argv) < 2:
-        sys.exit(__doc__)
+        sys.exit("usage: python3 scripts/parse_results.py results/results_<jobid>.txt [out.csv]")
 
     src = Path(sys.argv[1])
 
