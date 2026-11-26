@@ -1,0 +1,48 @@
+matrix,kernel,time_ms,gflops,pass
+bcsstk01,CPU SpMV,0.00052,,
+bcsstk01,CSR scalar SpMV,0.008458,0.094582,PASS
+bcsstk01,CSR vector SpMV,0.007844,0.101991,PASS
+bcsstk01,ELL SpMV,0.008335,0.095977,PASS
+bcsstk01,CPU SpMM,32.0,,
+bcsstk01,CSR naive SpMM,32.0,2.248201,PASS
+bcsstk01,CSR coalesced SpMM,32.0,2.955082,PASS
+nasasrb,CPU SpMV,2.181299,,
+nasasrb,CSR scalar SpMV,0.067031,78.245941,PASS
+nasasrb,CSR vector SpMV,0.066744,78.582062,PASS
+nasasrb,ELL SpMV,0.102932,50.954838,PASS
+nasasrb,CPU SpMM,32.0,,
+nasasrb,CSR naive SpMM,32.0,50.300864,PASS
+nasasrb,CSR coalesced SpMM,32.0,888.364858,PASS
+pwtk,CPU SpMV,9.331994,,
+pwtk,CSR scalar SpMV,0.260669,86.74929,PASS
+pwtk,CSR vector SpMV,0.249897,90.488823,PASS
+pwtk,ELL SpMV,0.265155,85.281914,PASS
+pwtk,CPU SpMM,32.0,,
+pwtk,CSR naive SpMM,32.0,50.297712,PASS
+pwtk,CSR coalesced SpMM,32.0,979.149828,PASS
+roadNet-CA,CPU SpMV,12.945291,,
+roadNet-CA,CSR scalar SpMV,0.133878,82.660706,PASS
+roadNet-CA,CSR vector SpMV,1.437819,7.696677,PASS
+roadNet-CA,ELL SpMV,0.190013,58.240242,PASS
+roadNet-CA,CPU SpMM,32.0,,
+roadNet-CA,CSR naive SpMM,32.0,24.219159,PASS
+roadNet-CA,CSR coalesced SpMM,32.0,189.091695,PASS
+shipsec1,CPU SpMV,2.911186,,
+shipsec1,CSR scalar SpMV,0.090931,75.123123,PASS
+shipsec1,CSR vector SpMV,0.123617,55.259537,PASS
+shipsec1,ELL SpMV,0.087204,78.334145,PASS
+shipsec1,CPU SpMM,32.0,,
+shipsec1,CSR naive SpMM,32.0,40.650242,PASS
+shipsec1,CSR coalesced SpMM,32.0,735.69724,PASS
+web-Google,CPU SpMV,13.68266,,
+web-Google,CSR scalar SpMV,0.280371,36.416286,PASS
+web-Google,CSR vector SpMV,0.665436,15.343441,PASS
+web-Google,CPU SpMM,32.0,,
+web-Google,CSR naive SpMM,32.0,16.653561,PASS
+web-Google,CSR coalesced SpMM,32.0,276.56268,PASS
+wiki-Talk,CPU SpMV,14.103678,,
+wiki-Talk,CSR scalar SpMV,8.622921,1.164666,PASS
+wiki-Talk,CSR vector SpMV,0.744837,13.483242,PASS
+wiki-Talk,CPU SpMM,32.0,,
+wiki-Talk,CSR naive SpMM,32.0,8.245618,PASS
+wiki-Talk,CSR coalesced SpMM,32.0,22.295559,PASS
