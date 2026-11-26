@@ -9,7 +9,7 @@ all: bin/bench
 
 bin/bench: $(SRC) $(HDR)
 	mkdir -p bin
-	$(NVCC) $(FLAGS) $(INC) -o bin/bench $(SRC)
+	$(NVCC) $(FLAGS) $(INC) -o bin/bench $(SRC) -lcusparse
 
 clean:
 	rm -rf bin
