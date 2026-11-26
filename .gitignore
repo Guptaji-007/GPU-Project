@@ -5,7 +5,6 @@ bin/
 *.out
 
 # matrices 
-*.mtx
 *.tar.gz
 
 # profiler output
