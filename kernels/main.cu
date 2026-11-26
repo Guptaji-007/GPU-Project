@@ -380,6 +380,39 @@ int main(int argc, char** argv) {
     // total elements in Y is (csr.rows * k)
     checkResult(Y_cpu, Y_gpu_result, csr.rows * k);
 
+    // kernel 5: CSR coalesced SpMM (a warp shares one row)
+    // clear Y so the check below really tests kernel 5
+    cudaMemset(gpuY_spmm, 0, (size_t)csr.rows * k * sizeof(float));
+
+    // warmup (same number of threads as kernel 4, one per element of Y)
+    csrCoalescedSpmm<<<spmmBlocks, threads>>>(csr.rows, k, gpuRowPtr, gpuColIdx, gpuVal, gpuB, gpuY_spmm);
+    cudaDeviceSynchronize();
+    err = cudaGetLastError();
+    if (err != cudaSuccess)
+        printf("CUDA error: %s\n", cudaGetErrorString(err));
+
+    float totalCoalescedMs = 0.0f;
+    for (int i = 0; i < runs; i++) {
+        cudaEventRecord(startGpu);
+
+        csrCoalescedSpmm<<<spmmBlocks, threads>>>(csr.rows, k, gpuRowPtr, gpuColIdx, gpuVal, gpuB, gpuY_spmm);
+
+        cudaEventRecord(stopGpu);
+        cudaEventSynchronize(stopGpu);
+
+        float iterMs = 0.0f;
+        cudaEventElapsedTime(&iterMs, startGpu, stopGpu);
+        totalCoalescedMs += iterMs;
+    }
+
+    float avgCoalescedMs = totalCoalescedMs / runs;
+    printf("Average GPU CSR coalesced SpMM Time (k=%d): %f ms\n", k, avgCoalescedMs);
+    printf("GPU CSR coalesced SpMM GFLOP/s: %f\n", 2.0 * csr.nnz * k / (1e6 * avgCoalescedMs));
+
+    cudaMemcpy(Y_gpu_result, gpuY_spmm, (size_t)csr.rows * k * sizeof(float), cudaMemcpyDeviceToHost);
+    printf("Checking CSR coalesced SpMM Correctness: ");
+    checkResult(Y_cpu, Y_gpu_result, csr.rows * k);
+
     cudaFree(gpuB);
     cudaFree(gpuY_spmm);
     // CSR arrays on GPU freed
