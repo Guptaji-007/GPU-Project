@@ -76,6 +76,23 @@ __global__ void csrNaiveSpmm(int rows, int k, const int *rowPtr, const int *colI
     }
 }
 
+// kernel 5: coalesced CSR SpMM
+// same as kernel 4 but I swapped how threads map to Y.
+// now threads next to each other share a row and take neighbouring columns,
+// so a warp reads 32 values of B in a row instead of jumping around memory
+__global__ void csrCoalescedSpmm(int rows, int k, const int *rowPtr, const int *colIdx,
+                                 const float *val, const float *B, float *Y) {
+    long id = (long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (id < (long)rows * k) {
+        int row = id / k;  // a warp shares one row
+        int c = id % k;    // and takes neighbouring columns of B
+        float sum = 0.0f;
+        for (int j = rowPtr[row]; j < rowPtr[row + 1]; j++)
+            sum += val[j] * B[(long)colIdx[j] * k + c];
+        Y[(long)row * k + c] = sum;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         printf("Usage: %s <matrix.mtx>\n", argv[0]);
