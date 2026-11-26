@@ -4,6 +4,7 @@
 #include "matrix.h"
 #include "cpu_ref.h"
 #include "utils.h"
+#include <cusparse.h>
 
 // kernel 1: CSR scalar SpMV
 // one thread computes one row of y (same loop as spmvCpu)
@@ -298,6 +299,57 @@ int main(int argc, char** argv) {
         printf("ELL SpMV: skipped (too much padding)\n");
     }
 
+    // cuSPARSE SpMV
+    cusparseHandle_t handle;
+    cusparseSpMatDescr_t matA;
+    cusparseDnVecDescr_t vecX, vecY;
+    float alpha = 1.0f, beta = 0.0f;
+
+    CHECK_CUSPARSE(cusparseCreate(&handle));
+    CHECK_CUSPARSE(cusparseCreateCsr(&matA, csr.rows, csr.cols, csr.nnz,gpuRowPtr, gpuColIdx, gpuVal,CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO, CUDA_R_32F));
+    CHECK_CUSPARSE(cusparseCreateDnVec(&vecX, csr.cols, gpuX, CUDA_R_32F));
+    CHECK_CUSPARSE(cusparseCreateDnVec(&vecY, csr.rows, gpuY, CUDA_R_32F));
+
+    // ask the library how much scratch memory it needs
+    size_t spmvBufSize = 0;
+    void *spmvBuf = NULL;
+    CHECK_CUSPARSE(cusparseSpMV_bufferSize(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,&alpha, matA, vecX, &beta, vecY,CUDA_R_32F, CUSPARSE_SPMV_ALG_DEFAULT,&spmvBufSize));
+    cudaMalloc(&spmvBuf, spmvBufSize);
+
+    // clear y so the check below really tests cuSPARSE
+    cudaMemset(gpuY, 0, csr.rows * sizeof(float));
+
+    // warmup
+    CHECK_CUSPARSE(cusparseSpMV(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,&alpha, matA, vecX, &beta, vecY,CUDA_R_32F, CUSPARSE_SPMV_ALG_DEFAULT, spmvBuf));
+    cudaDeviceSynchronize();
+
+    // timed loop
+    float totalCusparseSpmvMs = 0.0f;
+    for (int i = 0; i < runs; i++) {
+        cudaEventRecord(startGpu);
+        cusparseSpMV(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,&alpha, matA, vecX, &beta, vecY,CUDA_R_32F, CUSPARSE_SPMV_ALG_DEFAULT, spmvBuf);
+
+        cudaEventRecord(stopGpu);
+        cudaEventSynchronize(stopGpu);
+
+        float iterMs = 0.0f;
+        cudaEventElapsedTime(&iterMs, startGpu, stopGpu);
+        totalCusparseSpmvMs += iterMs;
+    }
+
+    float avgCusparseSpmvMs = totalCusparseSpmvMs / runs;
+    printf("Average GPU cuSPARSE SpMV Time: %f ms\n", avgCusparseSpmvMs);
+    printf("GPU cuSPARSE SpMV GFLOP/s: %f\n", 2.0f * csr.nnz / (avgCusparseSpmvMs * 1e6f));
+
+    cudaMemcpy(y_gpu_result, gpuY, csr.rows * sizeof(float), cudaMemcpyDeviceToHost);
+    printf("Checking cuSPARSE SpMV Correctness: ");
+    checkResult(y_cpu, y_gpu_result, csr.rows);
+
+    // cleanup for the SpMV part
+    CHECK_CUSPARSE(cusparseDestroyDnVec(vecX));
+    CHECK_CUSPARSE(cusparseDestroyDnVec(vecY));
+    cudaFree(spmvBuf);
+
     // SpMM will need the matrix on the gpu again later, so it is freed later
     cudaFree(gpuX);
     cudaFree(gpuY);
@@ -412,6 +464,52 @@ int main(int argc, char** argv) {
     cudaMemcpy(Y_gpu_result, gpuY_spmm, (size_t)csr.rows * k * sizeof(float), cudaMemcpyDeviceToHost);
     printf("Checking CSR coalesced SpMM Correctness: ");
     checkResult(Y_cpu, Y_gpu_result, csr.rows * k);
+
+    // cuSPARSE SpMM
+    cusparseDnMatDescr_t matB, matC;
+    CHECK_CUSPARSE(cusparseCreateDnMat(&matB, csr.cols, k, k, gpuB, CUDA_R_32F, CUSPARSE_ORDER_ROW));
+    CHECK_CUSPARSE(cusparseCreateDnMat(&matC, csr.rows, k, k, gpuY_spmm, CUDA_R_32F, CUSPARSE_ORDER_ROW));
+
+    size_t spmmBufSize = 0;
+    void *spmmBuf = NULL;
+    CHECK_CUSPARSE(cusparseSpMM_bufferSize(handle, CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,&alpha, matA, matB, &beta, matC, CUDA_R_32F, CUSPARSE_SPMM_ALG_DEFAULT, &spmmBufSize));
+    cudaMalloc(&spmmBuf, spmmBufSize);
+
+    // clear Y so the check below really tests cuSPARSE
+    cudaMemset(gpuY_spmm, 0, (size_t)csr.rows * k * sizeof(float));
+
+    // warmup
+    CHECK_CUSPARSE(cusparseSpMM(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, matA, matB, &beta, matC, CUDA_R_32F, CUSPARSE_SPMM_ALG_DEFAULT, spmmBuf));
+    cudaDeviceSynchronize();
+
+    // timed loop
+    float totalCusparseSpmmMs = 0.0f;
+    for (int i = 0; i < runs; i++) {
+        cudaEventRecord(startGpu);
+        cusparseSpMM(handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE, &alpha, matA, matB, &beta, matC, CUDA_R_32F, CUSPARSE_SPMM_ALG_DEFAULT, spmmBuf);
+
+        cudaEventRecord(stopGpu);
+        cudaEventSynchronize(stopGpu);
+
+        float iterMs = 0.0f;
+        cudaEventElapsedTime(&iterMs, startGpu, stopGpu);
+        totalCusparseSpmmMs += iterMs;
+    }
+
+    float avgCusparseSpmmMs = totalCusparseSpmmMs / runs;
+    printf("Average GPU cuSPARSE SpMM Time (k=%d): %f ms\n", k, avgCusparseSpmmMs);
+    printf("GPU cuSPARSE SpMM GFLOP/s: %f\n", 2.0 * csr.nnz * k / (1e6 * avgCusparseSpmmMs));
+
+    cudaMemcpy(Y_gpu_result, gpuY_spmm, (size_t)csr.rows * k * sizeof(float), cudaMemcpyDeviceToHost);
+    printf("Checking cuSPARSE SpMM Correctness: ");
+    checkResult(Y_cpu, Y_gpu_result, csr.rows * k);
+
+    // cleanup for all cuSPARSE objects
+    CHECK_CUSPARSE(cusparseDestroyDnMat(matB));
+    CHECK_CUSPARSE(cusparseDestroyDnMat(matC));
+    CHECK_CUSPARSE(cusparseDestroySpMat(matA));
+    CHECK_CUSPARSE(cusparseDestroy(handle));
+    cudaFree(spmmBuf);
 
     cudaFree(gpuB);
     cudaFree(gpuY_spmm);
