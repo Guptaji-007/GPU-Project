@@ -1,0 +1,171 @@
+===== data/bcsstk01.mtx
+CPU SpMV Time: 0.000541 ms
+Average GPU CSR scalar SpMV Time: 0.008581 ms
+GPU CSR scalar SpMV GFLOP/s: 0.093228
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 0.008049 ms
+GPU CSR vector SpMV GFLOP/s: 0.099396
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 1.44
+Average GPU ELL SpMV Time: 0.008212 ms
+GPU ELL SpMV GFLOP/s: 0.097413
+Checking ELL SpMV Correctness: PASS
+Average GPU cuSPARSE SpMV Time: 0.014725 ms
+GPU cuSPARSE SpMV GFLOP/s: 0.054329
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 0.010069 ms
+Average GPU SpMM Time (k=32): 0.011592 ms
+GPU naive SpMM GFLOP/s: 2.208481
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 0.008909 ms
+GPU CSR coalesced SpMM GFLOP/s: 2.873562
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 0.023859 ms
+GPU cuSPARSE SpMM GFLOP/s: 1.072962
+Checking cuSPARSE SpMM Correctness: PASS
+===== data/nasasrb.mtx
+CPU SpMV Time: 2.162910 ms
+Average GPU CSR scalar SpMV Time: 0.068424 ms
+GPU CSR scalar SpMV GFLOP/s: 76.653366
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 0.067359 ms
+GPU CSR vector SpMV GFLOP/s: 77.865288
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 5.75
+Average GPU ELL SpMV Time: 0.103158 ms
+GPU ELL SpMV GFLOP/s: 50.843563
+Checking ELL SpMV Correctness: PASS
+Average GPU cuSPARSE SpMV Time: 0.058962 ms
+GPU cuSPARSE SpMV GFLOP/s: 88.954185
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 69.652368 ms
+Average GPU SpMM Time (k=32): 3.390239 ms
+GPU naive SpMM GFLOP/s: 49.505971
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 0.260956 ms
+GPU CSR coalesced SpMM GFLOP/s: 643.162086
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 0.624128 ms
+GPU cuSPARSE SpMM GFLOP/s: 268.914614
+Checking cuSPARSE SpMM Correctness: PASS
+===== data/pwtk.mtx
+CPU SpMV Time: 9.331318 ms
+Average GPU CSR scalar SpMV Time: 0.263946 ms
+GPU CSR scalar SpMV GFLOP/s: 85.672318
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 0.252211 ms
+GPU CSR vector SpMV GFLOP/s: 89.658585
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 3.45
+Average GPU ELL SpMV Time: 0.265462 ms
+GPU ELL SpMV GFLOP/s: 85.183220
+Checking ELL SpMV Correctness: PASS
+Average GPU cuSPARSE SpMV Time: 0.173425 ms
+GPU cuSPARSE SpMV GFLOP/s: 130.390259
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 299.770365 ms
+Average GPU SpMM Time (k=32): 14.426543 ms
+GPU naive SpMM GFLOP/s: 50.158398
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 0.742031 ms
+GPU CSR coalesced SpMM GFLOP/s: 975.177455
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 1.890836 ms
+GPU cuSPARSE SpMM GFLOP/s: 382.694320
+Checking cuSPARSE SpMM Correctness: PASS
+===== data/roadNet-CA.mtx
+CPU SpMV Time: 12.964741 ms
+Average GPU CSR scalar SpMV Time: 0.133325 ms
+GPU CSR scalar SpMV GFLOP/s: 83.003517
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 1.451745 ms
+GPU CSR vector SpMV GFLOP/s: 7.622846
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 4.28
+Average GPU ELL SpMV Time: 0.189706 ms
+GPU ELL SpMV GFLOP/s: 58.334560
+Checking ELL SpMV Correctness: PASS
+Average GPU cuSPARSE SpMV Time: 0.143012 ms
+GPU cuSPARSE SpMV GFLOP/s: 77.381218
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 221.866535 ms
+Average GPU SpMM Time (k=32): 14.643817 ms
+GPU naive SpMM GFLOP/s: 24.182608
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 1.880434 ms
+GPU CSR coalesced SpMM GFLOP/s: 188.321302
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 1.877545 ms
+GPU cuSPARSE SpMM GFLOP/s: 188.611054
+Checking cuSPARSE SpMM Correctness: PASS
+===== data/shipsec1.mtx
+CPU SpMV Time: 2.910427 ms
+Average GPU CSR scalar SpMV Time: 0.090644 ms
+GPU CSR scalar SpMV GFLOP/s: 75.360756
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 0.124703 ms
+GPU CSR vector SpMV GFLOP/s: 54.778553
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 2.75
+Average GPU ELL SpMV Time: 0.087204 ms
+GPU ELL SpMV GFLOP/s: 78.334145
+Checking ELL SpMV Correctness: PASS
+Average GPU cuSPARSE SpMV Time: 0.072151 ms
+GPU cuSPARSE SpMV GFLOP/s: 94.676857
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 86.429486 ms
+Average GPU SpMM Time (k=32): 5.425766 ms
+GPU naive SpMM GFLOP/s: 40.287985
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 0.297820 ms
+GPU CSR coalesced SpMM GFLOP/s: 733.976891
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 0.683172 ms
+GPU cuSPARSE SpMM GFLOP/s: 319.968190
+Checking cuSPARSE SpMM Correctness: PASS
+===== data/web-Google.mtx
+CPU SpMV Time: 13.656469 ms
+Average GPU CSR scalar SpMV Time: 0.283464 ms
+GPU CSR scalar SpMV GFLOP/s: 36.019001
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 0.671990 ms
+GPU CSR vector SpMV GFLOP/s: 15.193806
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 81.86
+ELL SpMV: skipped (too much padding)
+Average GPU cuSPARSE SpMV Time: 0.241295 ms
+GPU cuSPARSE SpMV GFLOP/s: 42.313614
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 264.065947 ms
+Average GPU SpMM Time (k=32): 19.566101 ms
+GPU naive SpMM GFLOP/s: 16.698396
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 1.185976 ms
+GPU CSR coalesced SpMM GFLOP/s: 275.488252
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 1.713786 ms
+GPU cuSPARSE SpMM GFLOP/s: 190.643642
+Checking cuSPARSE SpMM Correctness: PASS
+===== data/wiki-Talk.mtx
+CPU SpMV Time: 13.901063 ms
+Average GPU CSR scalar SpMV Time: 8.761630 ms
+GPU CSR scalar SpMV GFLOP/s: 1.146227
+Checking CSR scalar SpMV Correctness: PASS
+Average GPU CSR vector SpMV Time: 0.749097 ms
+GPU CSR vector SpMV GFLOP/s: 13.406566
+Checking CSR vector SpMV Correctness: PASS
+ELL size / nnz = 47694.01
+ELL SpMV: skipped (too much padding)
+Average GPU cuSPARSE SpMV Time: 0.616550 ms
+GPU cuSPARSE SpMV GFLOP/s: 16.288725
+Checking cuSPARSE SpMV Correctness: PASS
+CPU SpMM Time (k=32): 369.509957 ms
+Average GPU SpMM Time (k=32): 39.091946 ms
+GPU naive SpMM GFLOP/s: 8.220881
+Checking SpMM Correctness: PASS
+Average GPU CSR coalesced SpMM Time (k=32): 14.389143 ms
+GPU CSR coalesced SpMM GFLOP/s: 22.334217
+Checking CSR coalesced SpMM Correctness: PASS
+Average GPU cuSPARSE SpMM Time (k=32): 2.550805 ms
+GPU cuSPARSE SpMM GFLOP/s: 125.987780
+Checking cuSPARSE SpMM Correctness: PASS
